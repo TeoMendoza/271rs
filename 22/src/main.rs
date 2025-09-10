@@ -1,116 +1,110 @@
-# A list of valid words, truncated for this example.
+use std::fs::File;
+use std::io::{self, Read};
+
+// A list of valid words, truncated for this example.
 const WORDS: [&str; 5] = ["sator", "arepo", "tenet", "opera", "rotas"];
 
-# ANSI color codes for colored text
-# 31: Red, 32: Green, 33: Yellow
-const RED : &str = "\u{001b}[31m";                                                                                                                                                                                      
-const WHT : &str = "\u{001b}[0m";                                                                                                                                                                                       
-const GRN: &str = "\u{001b}[32m";                                                                                                                                                                                       
-const YEL: &str = "\u{001b}[33m";     
+const RED : &str = "\u{001b}[31m";                                                                                                                                                                                                                                                
+const WHT : &str = "\u{001b}[0m";                                                                                                                                                                                                                                                 
+const GRN: &str = "\u{001b}[32m";                                                                                                                                                                                                                                                 
+const YEL: &str = "\u{001b}[33m";   
+const RESET: &str = "\x1b[0m";
 
-# Box-drawing characters for the game board
-const T : str = "┌───┬───┬───┬───┬───┐";  # Top border
-const M : str = "├───┼───┼───┼───┼───┤";  # Middle border
-const B : str = "└───┴───┴───┴───┴───┘";  # Bottom border
+// Box-drawing characters for the game board
+const T : &str = "┌───┬───┬───┬───┬───┐";  // Top border
+const M : &str = "├───┼───┼───┼───┼───┤";  // Middle border
+const B : &str = "└───┴───┴───┴───┴───┘";  // Bottom border
 
-fn main() {                                                                                                                                                                                                             
-    let s = "Hello, world";                                                                                                                                                                                             
-    println!("{:?}", s.chars().nth(10).unwrap());                                                                                                                                                                       
-    let mut devrnd = std::fs::File::open("/dev/urandom").unwrap();                                                                                                                                                      
-    let mut buffer = [0u8; (usize::BITS / 8) as usize];                                                                                                                                                                 
+fn main() {
+    // Make a mutable vector of six "     " placeholders
+    let mut words: [String; 6] = std::array::from_fn(|_| "     ".to_string());
+    // -----------------------------------
+    // Pick random answer using /dev/random
+    // -----------------------------------
+    let mut devrnd = File::open("/dev/random").expect("failed to open /dev/random");
+    let mut buffer = [0u8; (usize::BITS / 8) as usize];
+    devrnd.read_exact(&mut buffer).expect("failed to read random bytes");
+    let secret = usize::from_ne_bytes(buffer);
+    let answer: &str = WORDS[secret % WORDS.len()];
 
-    std::io::Read::read_exact(&mut devrnd, &mut buffer).unwrap();                                                                                                                                                       
-    let mut secret = usize::from_ne_bytes(buffer);                                                                                                                                                                      
-    let answer : String = String::from(WORDS[secret % WORDS.len()]);                                                                                                                                                    
-    let mut guess = String::new();
-    std::io::stdin().read_line(&mut guess).unwrap();
+    // ----------------------
+    // Screen + initial prompt
+    // ----------------------
+    print!("\x1b[2J"); // clear screen (no newline)
+    println!("Use lowercase only btw.");
 
-    if WORDS.contains(&guess.trim()) {                                                                                                                                                                                  
-        println!("BOOM BITCH");                                                                                                                                                                                         
-    }                                                                                                                                                                                                                   
-    else {                                                                                                                                                                                                              
-        println!("No bitch")                                                                                                                                                                                            
-    }                                                                                                                                                                                                                   
-                                                                                                                                                                                                                        
-                                                                                                                                                                                                                        
-                                                                                                                                                                                                                        
-}  
+    // -------------
+    // Main game loop
+    // -------------
+    let mut attempts: usize = 0;
 
-fn letter(a: &str, c: i32) {
-    """
-    Prints a single letter with a specified ANSI color.
+    // Keep going while the last slot is still the blank placeholder
+    while words[5] == "     " {
+        // Read input line
+        let mut guess = String::new();
+        io::stdin().read_line(&mut guess).expect("failed to read line");
 
-    Args:
-        a: The letter to print.
-        c: The ANSI color code.
-    """
-    print!("│ \u{001b}[{}m{}\u{001b}[0m ", c, a);
+        let guess_trim = guess.trim();
+
+        // Check guess validity
+        if WORDS.contains(&guess_trim) {
+            // Put guess into current attempts slot
+            words[attempts] = guess_trim.to_string();
+
+            // Call your game renderer; it wants &[&str], so make a borrowed view
+            let view: [&str; 6] = std::array::from_fn(|i| words[i].as_str());
+	    game(&view, answer);
+            // Win check
+            if guess_trim == answer {
+                println!("Winner");
+                return;
+            }
+
+            attempts += 1;
+            if attempts >= 6 {
+                break; // safety, though the while-condition also stops us
+            }
+        } else {
+            println!("Not a valid word!");
+        }
+    }
+
+    println!("Game over :(");
 }
 
-fn colors(s: &str, answer: &str):
-    """
-    Analyzes a guessed word and prints it with the appropriate colors.
+fn letter(a: char, c: &str) {
+    print!("│ {c}{a}{RESET} ");
+}
 
-    Args:
-        s: The guessed word.
-        answer: The correct answer word.
-    """
-    for i in range(5):
-        char = s[i]
-        color_code = R
-        if answer[i] == char:
-            color_code = G
-        elif char in answer:
-            color_code = Y
-        letter(char, color_code)
-    print("│")
+fn colors(s: &str, answer: &str) {
 
-def game(words: list[str], answer: str):
-    """
-    Clears the screen and draws the game board with the current guesses.
+    for i in 0..5 {
+        let ch = s.chars().nth(i).unwrap();
+        let ans_ch = answer.chars().nth(i).unwrap();
 
-    Args:
-        words: A list of guessed words.
-        answer: The correct answer word.
-    """
-    print("\u001b[2J")  # Clear the screen
-    print(T)
-    for i in range(5):
-        colors(words[i], answer)
-        print(M)
-    colors(words[5], answer)
-    print(B)
+        let color = if ch == ans_ch {
+            GRN
+        } else if answer.contains(ch) {
+            YEL
+        } else {
+            RED
+        };
 
-def main():
-    """
-    The main game loop.
-    """
-    words = ["     "] * 6
+        letter(ch, color);
+    }
 
-    ###############################################
-    #                                             #
-    # You are required to use /dev/random in Rust #
-    #                                             #
-    ###############################################
-    import random
-    answer = random.choice(WORDS)
+    println!("│"); // right border
+}
 
-    attempts = 0
+fn game(words: &[&str], answer: &str) {
+    print!("\x1b[2J");
+    println!("{T}");
 
-    print("\u001b[2J", end="")  # Clear the screen
-    print("Use lowercase only btw.")
+    for i in 0..5 {
+        colors(words[i], answer);  // ✅ indexing is fine
+        println!("{M}");
+    }
 
-    while words[5] == "     ":
-        guess = input().strip()  # Convert input to lowercase
-        if guess in WORDS:
-            words[attempts] = guess
-            game(words, answer)
-            if guess == answer:
-                print("Winner")
-                return
-            attempts += 1
-        else:
-            print("Not a valid word!")
-
-    print("Game over: (")
-
+    colors(words[5], answer);      // ✅ also fine if words has 6 entries
+    println!("{B}");
+}
