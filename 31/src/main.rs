@@ -1,6 +1,11 @@
-use hamming::{distance_u8, distance_u64, distance_bytes, distance_words};
+use hamming::{weight_u8, weight_u64, weight_bytes, weight_words, distance_u8, distance_u64, distance_bytes, distance_words};
 
 fn main() {
+    println!("{}", weight_u8(5));          // 2 
+    println!("{}", weight_u64(15));        // 4
+    println!("{}", weight_bytes(vec![1,3,7])); // 6
+    println!("{}", weight_words(vec![5,7])); // 5
+
 
     println!("distance_u8(5, 7) = {}", distance_u8(5, 7)); 
 
